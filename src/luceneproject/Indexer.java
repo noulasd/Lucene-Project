@@ -1,87 +1,16 @@
 package luceneproject;
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileFilter;
 import java.io.FileReader;
 import java.io.IOException;
-
-import org.apache.lucene.analysis.PorterStemFilter;
-import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
 import org.apache.lucene.index.CorruptIndexException;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
-import org.apache.lucene.util.Version;
-/*public class Indexer {
 
-	public static void main(String[] args) throws Exception {
-		// TODO Auto-generated method stub
-		if (args.length !=2) {
-			throw new Exception("Usage: java " + Indexer.class.getName()
-						+ " <index dir> <data dir>");
-		}
-		String indexDir = args[0];
-		String dataDir = args[1];
-		
-		long start = System.currentTimeMillis();
-		Indexer indexer = new Indexer(indexDir);
-		int numIndexed = indexer.index(dataDir);
-		indexer.close();
-		long end = System.currentTimeMillis();
-		
-		System.out.print("indexing "+ numIndexed + "files took "+ (end - start) + "milliseconds");
-	}//main
-	
-	private IndexWriter writer;
-	public Indexer(String indexDir) throws IOException{
-		
-		Directory dir = new FSDirectory.open(new File(indexDir));
-		writer = new IndexWriter(dir, new StandardAnalyzer(), true, IndexWriter.MAX_);
-	}
-	public void close() throws IOException{
-		writer.close();
-	}
-	public int index(String dataDir) throws Exception{
-		File[] files = new File(dataDir).listFiles();
-		
-		for (int i = 0; i< files.length; i++) {
-			File f = files[i];
-			
-			if (!f.isDirectory()  &&
-					!f.isHidden() &&
-					f.exists() &&
-					f.canRead() &&
-					acceptFile(f)) {
-				indexFile(f);
-			}
-		}
-		return writer.numDocs();
-	}//index
-	
-	protected boolean acceptFile(File f) {
-		return f.getName().endsWith(".txt");
-	}
-	protected Document getDocument(File f) throws Exception{
-		Document doc = new Document();
-		doc.add(new Field("contents", new FileReader(f)));
-		doc.add(new Field("filename",f.getCanonicalPath(),Field.Store.YES, Field.Index.NOT_ANALYZED));
-		return doc;
-	}
-	private void indexFile(File f) throws Exception{
-		System.out.println("Indexing "+ f.getCanonicalPath());
-		Document doc = getDocument(f);
-		if(doc!=null) {
-			writer.addDocument(doc);
-		}
-	}
-	
-	
-	
-	
-	
-}//class
-*/
 
 
 
@@ -92,15 +21,16 @@ import org.apache.lucene.util.Version;
 public class Indexer {
 
 	   private IndexWriter writer;
-
-	   public Indexer(String indexDirectoryPath) throws IOException {
+	   
+	   @SuppressWarnings("deprecation")
+	public Indexer(String indexDirectoryPath) throws IOException {
 	      //this directory will contain the indexes
 	      Directory indexDirectory = 
 	         FSDirectory.open(new File(indexDirectoryPath));
 
 	      //create the indexer
-	      writer = new IndexWriter(indexDirectory, 
-	         new StandardAnalyzer(Version.LUCENE_36),true,
+	      writer = new IndexWriter(indexDirectory, //using our index directory and Porter Stemmer
+	         new MyAnalyzer(),true,
 	         IndexWriter.MaxFieldLength.UNLIMITED);
 	   }
 
@@ -109,14 +39,81 @@ public class Indexer {
 	   }
 
 	   private Document getDocument(File file) throws IOException {
-	      Document document = new Document();
+		  Document document = new Document();
+		  FileReader fr = new FileReader(file);
 	      
-	      //index file contents
-	      Field contentField = new Field(LuceneConstants.CONTENTS, 
-	         new FileReader(file));
 	      
+	      
+	      
+	      String title ="";
+	      String author="";
+	      String synopsis="";
+			
+	      try {														//parsing Title, Author, Synopsis from records
+				
+				BufferedReader br = new BufferedReader(fr);
+				String brs=br.readLine();
+				
+				while(brs!=null) {
+					if(brs.startsWith(".T")) {
+						brs=br.readLine();
+						while(!brs.startsWith(".")) {
+							title+=brs;
+							brs=br.readLine();
+						}
+					}
+					
+					if(brs.startsWith(".A")) {
+						brs=br.readLine();
+						while(!brs.startsWith(".")) {
+							author+=brs;
+							brs=br.readLine();
+						}
+					}
+					
+					if(brs.startsWith(".W")) {
+						brs=br.readLine();
+						while(!brs.startsWith(".")) {
+							synopsis+=brs;
+							brs=br.readLine();
+						}
+					}
+					
+					
+					
+					
+					brs=br.readLine();
+					
+					
+				
+						
+					
+				}//while brs null
+				br.close();
+			} 
+			catch (IOException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				
+				}
+	      
+	      
+	      
+	      
+	      
+	      
+	      
+	      
+	      
+	      
+	      
+	      
+	      
+	     
+	      
+	  
 	      //index file name
-	      Field fileNameField = new Field(LuceneConstants.FILE_NAME,
+	      Field fileNameField = new Field(LuceneConstants.FILE_NAME, 				//creating the fields for filename and filepath
 	         file.getName(),
 	         Field.Store.YES,Field.Index.NOT_ANALYZED);
 	      
@@ -125,20 +122,45 @@ public class Indexer {
 	         file.getCanonicalPath(),
 	         Field.Store.YES,Field.Index.NOT_ANALYZED);
 
-	      document.add(contentField);
+	      //creating fields for author,title,synopsis
+	      //if not empty add fields to document object
+	      if(title!="") {
+	    	  Field titlefield = new Field(LuceneConstants.TITLE,title,Field.Store.YES,Field.Index.NOT_ANALYZED);
+	    	  document.add(titlefield);
+
+	      }
+	      
+	      //no need to analyze author and title
+	      
+	      
+	      if(author!="") {
+	    	  Field authorfield = new Field(LuceneConstants.AUTHOR,author,Field.Store.YES,Field.Index.NOT_ANALYZED);
+	    	  document.add(authorfield);
+	      }
+	      
+	      
+	      if(synopsis!="") {
+	    	  Field synopsisfield = new Field(LuceneConstants.SYNOPSIS,synopsis,Field.Store.YES,Field.Index.ANALYZED,Field.TermVector.YES);
+	    	  document.add(synopsisfield); //analyzing synopsis and creating term vector in order to find term frequencies
+	      }
+	      
+	      
 	      document.add(fileNameField);
 	      document.add(filePathField);
-
+	      
+	      
+	      
+	      
+	      
 	      return document;
 	   }   
 
 	   private void indexFile(File file) throws IOException {
-	      System.out.println("Indexing "+file.getCanonicalPath());
-	      Document document = getDocument(file);
+	      Document document = getDocument(file); //index document object based on its fields
 	      writer.addDocument(document);
 	   }
 
-	   public int createIndex(String dataDirPath, FileFilter filter) 
+	   public int createIndex(String dataDirPath, FileFilter filter) //index all files in data directory with indexFile
 	      throws IOException {
 	      //get all files in the data directory
 	      File[] files = new File(dataDirPath).listFiles();
@@ -155,7 +177,7 @@ public class Indexer {
 	      }
 	      return writer.numDocs();
 	   }
-
+	   
 		
 	   
 	}
